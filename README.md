@@ -31,9 +31,22 @@ AND st_intersects(
     ST_MakeEnvelope(126.9373539, 37.5210172, 127.0540836, 37.5873607, 4326)
 );
 ```
-[쿼리1]    
+**[쿼리1]**    
 
 그럼 이 문제를 어떻게 해결했는지, 어떻게 성능을 10,000배 올릴 수 있었는지 지금부터 이야기해보겠습니다!  
+
+### Spatial data의 intersects의 계산 방법    
+문제 상황에서 사용하는 spatial data는 2d의 polygon 입니다. 그리고 intersects는 두개의 polygon이 겹치는지를 판단하는 연산을 의미합니다. 이를 postgresql에서는 아래와 같이 사용합니다.   
+```
+SELECT * FROM region WHERE region
+AND st_intersects(
+    region.polygon,
+    ST_MakeEnvelope(126.9373539, 37.5210172, 127.0540836, 37.5873607, 4326)
+);
+```
+**[쿼리2]**    
+
+위 쿼리는 region 테이블의 polygon 컬럼과 서울 종로구 부근의 영역을 비교하여 겹치는 영역이 있는가를 조건으로 select 합니다. 약 천만개의 row가 있는 region 테이블에서도 0.5초내외의 성능을 보여주면서 의외로 빠른 성능을 보여줍니다. intersects 연산이 단순하게 생각하면 무거운 연산일거라 추측할 수 있습니다. 이 쿼리가 어떻게 빠르게 동작할 수 있는것인지 의문이 드는데, 이게 가능한 방법이 있습니다. R-Tree라는 자료구조를 사용한 index 구조를 통해 계산하면 intersects 계산을 빠르게 할 수 있다고 합니다.
 
 ### 마치며
 이로써 **Spatial data**의 성능을 **10,000배 UP!** 시킨 이야기가 끝이 났습니다.   
