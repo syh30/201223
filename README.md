@@ -14,6 +14,22 @@
 그래서 **spatial data**를 이용하여 각 상점의 배송 가능한 권역들, 배달이 불가능한 권역들을 관리하는 권역 시스템을 운영하고 있습니다.    
 
 권역 시스템에서는 **spatial data**를 효율적으로 다루기 위해서 **PostgreSQL**에서 지원하는 **PostGIS**를 이용하고 있는데요.   
-**지도 화면에서 보이는 영역과 행정동/법정동 polygon의 intersects를 계산하고 polygon을 가져오는 과정에서 큰 성능 이슈를 가지고 있었습니다.** *(worst case에서는 조회시간이 60초 정도 걸렸습니다,,,눈물)*
+**지도 화면에서 보이는 영역과 행정동/법정동 polygon의 intersects를 계산하고 polygon을 가져오는 과정에서 큰 성능 이슈를 가지고 있었습니다.** *(worst case에서는 조회시간이 60초 정도 걸렸습니다,,,눈물)*    
 
-### 
+성능이 떨어지는 문제의 쿼리는 아래와 같았습니다.
+
+```
+SELECT region.*
+FROM region
+INNER JOIN address_polygon on region.pk=address_polygon.region_pk
+INNER JOIN address on address_polygon.address_pk=address.pk
+WHERE address.address_type = 'LEGAL'
+AND region.region_type = 'ADDRESS_REGION'
+AND region.status = 'ENABLED'
+AND st_intersects(
+    region.polygon,
+    ST_MakeEnvelope(126.9373539, 37.5210172, 127.0540836, 37.5873607, 4326)
+);
+```
+그럼 이 문제를 어떻게 해결했는지, 어떻게 성능을 10,000배 올릴 수 있었는지 지금부터 이야기해보겠습니다!  
+###
