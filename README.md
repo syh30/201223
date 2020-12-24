@@ -51,12 +51,12 @@ AND st_intersects(
 **[쿼리2]**
 
 위 쿼리는 region 테이블의 polygon 컬럼과 서울 종로구 부근의 영역을 비교하여 '겹치는 영역이 있는가'를 조건으로
-select 합니다. 약 천만개의 row가 있는 region 테이블에서도 0.5초내외의 성능을 보여주면서 의외로 빠른 성능을 보여줍니다.
-intersects 연산이 단순하게 생각하면 무거운 연산일거라 추측할 수 있습니다. 이 쿼리가 어떻게 빠르게 동작할 수 있는것인지
-의문이 드는데, 가능한 방법이 있습니다. [R-Tree](https://en.wikipedia.org/wiki/R-tree)라는 자료구조를 사용한
+select 하는데요. 약 천만개의 row가 있는 region 테이블에서도 0.5초내외의 성능을 보여주면서 의외로 빠른 성능을 보여줍니다.
+intersects 연산이 단순하게 생각하면 무거운 연산일거라 추측할 수도 있습니다. 이 쿼리가 어떻게 빠르게 동작할 수 있는 것인지
+의문이 드는데, 가능한 방법이 있습니다. 바로 [R-Tree](https://en.wikipedia.org/wiki/R-tree)라는 자료구조를 사용한
 index 구조를 통해 계산하면 intersects 계산을 빠르게 할 수 있다고 합니다.
 
-R-tree의 인덱싱 방법은 B-tree와 유사한데, polygon 데이터들의 최소한의 bounding box를 구하고 그 박스간의 포함관계를
+R-tree의 인덱싱 방법은 B-tree와 유사한데, polygon 데이터들의 최소한의 bounding box를 구하고 그 박스 간의 포함관계를
 B-tree의 형식으로 관리하는 index tree입니다. 이렇게 B-tree의 범위 조회와 같은 계산 방법으로 계산하면 포함관계와
 교차관계(intersects)를 쉽게 계산할 수 있습니다. index search를 통해서 대충 intersects하는 polygon을 bounding box가
 아닌 실제 polygon과의 intersects 연산을 한번 더 진행해서, 진짜 원하는 polygon이 맞는지 한번 더 선별과정을 거칩니다.
@@ -64,10 +64,10 @@ B-tree의 형식으로 관리하는 index tree입니다. 이렇게 B-tree의 범
 ![](https://upload.wikimedia.org/wikipedia/commons/6/6f/R-tree.svg)
 
 이 권역 서비스는 처음부터 프로젝트에 involve된게 아니었기 때문에 위 문제의 쿼리1을 만났을때는
-쿼리2를 테스트 해보지 않았습니다. 따라서 천만개의 row에 대해 intersects를 모두 계산한다고 생각했기때문에, 어떻게 해도
-빠르게 할 수 있는 방법이 없다고 생각했습니다. 따라서 모든 폴리곤을 메모리에 올리고 최적화된 알고리즘을 구현해야겠다는
+쿼리2를 테스트 해보지 않았습니다. 따라서 천만개의 row에 대해 intersects를 모두 계산한다고 생각했기 때문에, 어떻게 해도
+빠르게 할 수 있는 방법이 없다고 생각했죠. 따라서 모든 폴리곤을 메모리에 올리고 최적화된 알고리즘을 구현해야겠다는
 생각을 하면서 찾아보다가 R-tree에 대해서 알게 되었습니다.
-R-tree 성능에 대해서 Python으로 구현해보고 충분히 빠른것을 확인하였습니다. Python에서는 R-tree의 구현을
+R-tree 성능에 대해서 Python으로 구현해보고 충분히 빠른 것을 확인하였습니다. Python에서는 R-tree의 구현을
 ctypes를 이용해 libspatialindex를 래핑한 [라이브러리](https://pypi.org/project/Rtree/)를 찾을 수 있었습니다.
 
 그래서 'PostGIS는 이런 것을 지원 안하나?' 싶어서 찾아보게 되었는데 PostGIS도 R-tree와 같은 bounding box indexing을 지원한다는
@@ -77,8 +77,8 @@ ctypes를 이용해 libspatialindex를 래핑한 [라이브러리](https://pypi.
 라는 이름으로 index 방법을 제공하고 있는것을 알게 되었습니다. 그리고 위 GIST의 링크를 읽어보면 나와 있는데,
 bounding box간의 연산을 위해서 postgresql에서는 [특수한 연산자](https://postgis.net/docs/reference.html#idm9871)를 따로
 지원하고 있습니다. 또한 st_intersects는 이미 내부에서 `&&` 연산자를 통해서 bounding box간의 연산을 하고 `AND` 조건으로
-실제 polygon이 intersects 하는 가를 판단한다는 것을 알게 되었습니다. 이 사실을 알고 위 쿼리 2를 작성해서 쿼리해보고,
-0.5초의 성능이면 1분에 비해서는 성능이 엄청나게 좋은 성능이 나온다는 것을 알게 되어서, 어떻게 이 정도의 차이를 갖게 되는지
+실제 polygon이 intersects 하는 가를 판단한다는 것을 알게 되었습니다. 이 사실을 알고 위 쿼리 2를 작성하여 쿼리해보고,
+0.5초의 성능이면 1분에 비해서는 굉장히 좋은 성능이 나온다는 것을 알 수 있었습니다. 그래서 어떻게 이 정도의 차이를 갖게 되는지
 좀 더 정확히 알아보고자 `explain analyze`를 해보게 되었습니다.
 
 ```
@@ -94,9 +94,9 @@ Execution Time: 522.464 ms
 polygon 데이터와 비교하고, 후에 filter 조건으로 _st_intersects를 사용하는 것을 확인할 수 있습니다.
 
 
-## 그러면 문제는 어디서 발생하는걸까?
+## 그러면 문제는 어디서 발생하는걸까?:information_desk_person:
 
-그러면 문제가 된 쿼리 1은 도대체 무슨 문제가 있었던 건가? 싶어서 해당 쿼리도 `explain analyze`를 돌려보았습니다.
+그렇다면 '문제가 된 쿼리 1은 도대체 무슨 문제가 있었던 건가?' 싶어서 해당 쿼리도 `explain analyze`를 돌려보았습니다.
 
 ```
 Gather  (cost=1080.01..67698.36 rows=... width=1894) (actual time=117.101..66590.220 rows=... loops=1)
@@ -134,9 +134,9 @@ postgresql이 경우에 따라서 index를 타는 것이 비효율적이라 판�
 어떤 기준으로 하는지가 불명확하고 vacuuming 해도 index를 사용할 때도 있고 안 할 때도 있어서 단순히 vacumming으로는 일관적인
 성능을 보장하기는 어렵다고 판단했습니다.
 
-위에 region의 테이블이 약 천만개의 row가 있는데, 실제로 그 중 행정동/법정동과 시군구, 시도의 모든 폴리곤이 58,000개 정도
-밖에 되지 않습니다. 그래서 'postgresql이 spatial index를 타는 게 이득이 될 수 있다'고 판단할 수 있도록 row 수를 줄이고, join을 풀어서
-spatial index와 address_type index를 병렬로 사용할 수 있도록 하기 위해 table을 합칠까 생각하던 중,
+위에 region의 테이블이 약 천만개의 row가 있는데 실제로 그중 행정동/법정동과 시군구, 시도의 모든 폴리곤을 58,000개 정도
+밖에 안되서 postgresql이 spatial index를 타는게 이득이 될 수 있다 판단할 수 있도록 row 수를 줄이고, join을 풀어서
+spatial index와 address_type index를 병렬로 사용할 수 있도록 하기 위해서 table을 합칠까 생각하던 중
 [materialized view](https://en.wikipedia.org/wiki/Materialized_view)를 떠올리게 되었습니다.
 
 oracle, postgresql, mariadb 에서는 일반적인 view와는 달리 물리적으로 어느 정도의 데이터를 저장하고 view의 columne에
