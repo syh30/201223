@@ -134,12 +134,12 @@ postgresql이 경우에 따라서 index를 타는 것이 비효율적이라 판�
 어떤 기준으로 하는지가 불명확하고 vacuuming 해도 index를 사용할 때도 있고 안 할 때도 있어서 단순히 vacumming으로는 일관적인
 성능을 보장하기는 어렵다고 판단했습니다.
 
-위에 region의 테이블이 약 천만개의 row가 있는데 실제로 그중 행정동/법정동과 시군구, 시도의 모든 폴리곤을 58,000개 정도
-밖에 안돼서 postgresql이 spatial index를 타는게 이득이 될 수 있다 판단할 수 있도록 row 수를 줄이고, join을 풀어서
-spatial index와 address_type index를 병렬로 사용할 수 있도록 하기 위해서 table을 합칠까 생각하던 중
+위에 region의 테이블이 약 천만개의 row가 있는데, 실제로 그 중 행정동/법정동과 시군구, 시도의 모든 폴리곤이 58,000개 정도
+밖에 되지 않습니다. 그래서 'postgresql이 spatial index를 타는 게 이득이 될 수 있다'고 판단할 수 있도록 row 수를 줄이고, join을 풀어서
+spatial index와 address_type index를 병렬로 사용할 수 있도록 하기 위해 table을 합칠까 생각하던 중,
 [materialized view](https://en.wikipedia.org/wiki/Materialized_view)를 떠올리게 되었습니다.
 
-oracle, postgresql, mariadb 에서는 일반적인 view와는 달리 물리적으로 어느정도의 데이터를 저장하고 view의 columne에
+oracle, postgresql, mariadb 에서는 일반적인 view와는 달리 물리적으로 어느 정도의 데이터를 저장하고 view의 columne에
 index를 적용할 수 있는 materialized view를 지원합니다. join 조건을 materialized view로 만들어서 최적화하고
 `polygon` 컬럼에 index를 적용 시켜준다면 spatial index 사이즈가 작아지면서 postgresql이 cost
 계산을 더 잘 할 수 있을거라 추측해서 아래와 같이 적용해봤습니다.
@@ -173,7 +173,7 @@ WHERE address_region_view.address_type='LEGAL'
     );
 ```
 
-위 쿼리를 사용하여 explain 해보면결과는 아래와 같습니다.
+위 쿼리를 사용하여 explain 해보면 결과는 아래와 같습니다.
 
 ```
 Nested Loop Left Join  (cost=166.64..825.34 rows=32 width=1533) (actual time=1.660..6.270 rows=... loops=1)
@@ -193,7 +193,7 @@ Planning Time: 0.686 ms
 Execution Time: 6.408 ms
 ```
 
-총 실행시간이 66,590ms에서 6.4ms에 가깝게 줄어든것을 확인할 수 있었습니다.
+총 실행시간이 66,590ms에서 6.4ms에 가깝게 줄어든것을 확인할 수 있었습니다!
 
 ## 결론
 
@@ -207,4 +207,4 @@ spatial data를 한 테이블에 너무 많은 데이터를 넣으면 index연�
 
 늘 좋은 배달 서비스를 제공하기 위해 노력하고 있는 메쉬코리아 부릉, 많이 지켜봐주세요!    
 
-긴 글 읽어주셔서 감사합니다 😊 
+긴 글 읽어주셔서 감사합니다😊 
