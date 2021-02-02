@@ -209,3 +209,6 @@ spatial data를 한 테이블에 너무 많은 데이터를 넣으면 index연�
 그리고 늘 좋은 물류 BPO 서비스를 제공하기 위해 노력하고 있는 메쉬코리아 부릉, 많이 지켜봐주세요!    
 
 긴 글 읽어주셔서 감사합니다😊 
+
+
+[materialized view] (https://en.wikipedia.org/wiki/Materialized_view "materialized view")
