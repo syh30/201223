@@ -211,4 +211,5 @@ spatial data를 한 테이블에 너무 많은 데이터를 넣으면 index연�
 긴 글 읽어주셔서 감사합니다😊 
 
 
-[materialized view] (https://en.wikipedia.org/wiki/Materialized_view)
+[materialized view] (https://en.wikipedia.org/wiki/Materialized_view)        
+[materialized view] (https://en.wikipedia.org/wiki/Materialized_view)를 떠올리게 되었습니다.
